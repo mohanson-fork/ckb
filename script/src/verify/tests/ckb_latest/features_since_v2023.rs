@@ -1470,3 +1470,38 @@ fn spawn_create_17_spawn() {
 
     assert_eq!(cycles, 36445673);
 }
+
+#[test]
+fn audit_snapshot2_load_code_restores_out_of_range_bytes() {
+    if SCRIPT_VERSION < ScriptVersion::V2 {
+        return;
+    }
+
+    let script_version = ScriptVersion::V2;
+    let (root_cell, root_data_hash) = load_cell_from_path("testdata/audit_load_code_root");
+    let (data_cell, _) = load_cell_from_path("testdata/audit_load_code_data");
+    let (child_cell, _) = load_cell_from_path("testdata/audit_load_code_child");
+    let script = Script::new_builder()
+        .hash_type(script_version.data_hash_type())
+        .code_hash(root_data_hash)
+        .build();
+    let output = CellOutputBuilder::default()
+        .capacity(capacity_bytes!(100))
+        .lock(script)
+        .build();
+    let input = CellInput::new(OutPoint::null(), 0);
+    let transaction = TransactionBuilder::default().input(input).build();
+    let dummy_cell = create_dummy_cell(output);
+    let rtx = ResolvedTransaction {
+        transaction,
+        resolved_cell_deps: vec![root_cell, data_cell, child_cell],
+        resolved_inputs: vec![dummy_cell],
+        resolved_dep_groups: vec![],
+    };
+
+    let verifier = TransactionScriptsVerifierWithEnv::new();
+    let cycles = verifier
+        .verify_without_limit(script_version, &rtx)
+        .expect("Snapshot2 must preserve zero-filled code memory");
+    assert_eq!(cycles, 712562);
+}

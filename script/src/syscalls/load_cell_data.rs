@@ -159,7 +159,8 @@ where
             Some(cell.slice((content_offset as usize)..(content_end as usize))),
             0,
         )?;
-        sc.track_pages(machine, addr, memory_size, &data_piece_id, content_offset)?;
+        sc.untrack_pages(machine, addr, memory_size)?;
+        sc.track_pages(machine, addr, content_size, &data_piece_id, content_offset)?;
         machine.add_cycles_no_checking(transferred_byte_cycles(memory_size))?;
         machine.set_register(A0, Mac::REG::from_u8(SUCCESS));
         Ok(())
